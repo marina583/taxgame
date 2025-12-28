@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tax-Man: המרדף להחזר</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap');
+
+        body {
+            background-color: #f4f7f6; /* רקע בהיר נקי */
+            color: #2c3e50; /* טקסט כהה */
+            font-family: 'Heebo', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #2c3e50; /* כותרת כהה סולידית */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 400px;
+            margin: 10px 0;
+            padding: 0 10px;
+            box-sizing: border-box;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .stat-box {
+            background: #ffffff;
+            padding: 8px 20px;
+            border-radius: 50px;
+            border: 1px solid #dfe6e9;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            color: #2d3436;
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 4px solid #ecf0f1;
+            border-radius: 12px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #ffffff; /* קנבס לבן */
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95); /* רקע לבן חצי שקוף */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .btn {
+            background: #3498db; /* כחול הייטק */
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 15px; /* Reduced margin slightly */
+            font-family: 'Heebo', sans-serif;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+            text-decoration: none; /* For the link button */
+            display: inline-block;
+        }
+
+        .btn-cta {
+            background: #27ae60; /* ירוק להנעה לפעולה */
+            box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
+            display: none; /* Hidden by default */
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        #message {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #7f8c8d;
+            max-width: 85%;
+            line-height: 1.5;
+        }
+
+        .legend {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            color: #555;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mobile-hint {
+            display: none;
+            color: #95a5a6;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-hint {
+                display: block;
+            }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tax-Man</h1>
+
+    <div id="game-info">
+        <div class="stat-box">החזר: ₪<span id="score">0</span></div>
+        <div class="stat-box">חיים: <span id="lives">3</span></div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="overlay">
+            <h2 style="color: #2c3e50; font-size: 2.2rem; margin:0 0 10px 0;">ברוכים הבאים</h2>
+            <div id="message">אסוף את השקלים ואת המסמכים (זיכויים, קבלות, 106) כדי להגיע להחזר של 8,000 ש"ח!<br>היזהר מפקידי השומה!</div>
+            
+            <!-- CTA Button for Game Over -->
+            <a id="cta-btn" href="https://taxcare.co.il/" target="_blank" class="btn btn-cta">לשיחת ייעוץ ללא עלות</a>
+            
+            <button class="btn" onclick="startGame()">התחל החזר מס</button>
+            <div class="legend">
+                <div class="legend-item"><span style="color:#f1c40f; font-size:1.5em; text-shadow: 0 0 2px rgba(0,0,0,0.2);">●</span> שקלים</div>
+                <div class="legend-item"><span style="color:#e74c3c; font-size:1.2em;">●</span> פקיד שומה</div>
+                <div class="legend-item"><span style="color:#34495e; font-size:1.2em;">📄</span> מסמכים</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-hint">החלק עם האצבע כדי לזוז</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const overlay = document.getElementById('overlay');
+        const messageEl = document.getElementById('message');
+        const startBtn = document.querySelector('button.btn'); // Specific selector for the button
+        const ctaBtn = document.getElementById('cta-btn');
+
+        // Map Layout: 1=Wall, 0=Dot, 2=PlayerSpawn, 3=Bonus, 4=GhostSpawn (Spread out now)
+        const mapLayout = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+            [1,3,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,3,1], 
+            [1,0,0,0,0,0,0,0,4,0,4,0,0,0,0,0,0,0,1], 
+            [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
+            [1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0,1], 
+            [1,1,1,1,0,1,0,1,0,4,0,1,0,1,0,1,1,1,1], 
+            [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,1], 
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+            [1,0,0,1,0,0,0,0,0,2,0,0,0,0,0,1,0,0,1], 
+            [1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+            [1,3,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,3,1], 
+            [1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
+            [1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,1], 
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        const bonusTypes = ['טופס 106', 'קבלות', 'נק. זיכוי', 'ביטוח', 'קרן השתלמות'];
+
+        let TILE_SIZE = 22; 
+        const ROWS = mapLayout.length;
+        const COLS = mapLayout[0].length;
+        
+        function resizeCanvas() {
+            const maxHeight = window.innerHeight * 0.7;
+            const maxWidth = window.innerWidth * 0.95;
+            
+            TILE_SIZE = Math.floor(maxHeight / ROWS);
+            if (TILE_SIZE * COLS > maxWidth) {
+                TILE_SIZE = Math.floor(maxWidth / COLS);
+            }
+            if(TILE_SIZE < 15) TILE_SIZE = 15;
+
+            canvas.width = COLS * TILE_SIZE;
+            canvas.height = ROWS * TILE_SIZE;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let score = 0;
+        let lives = 3;
+        let isGameRunning = false;
+        let powerMode = false;
+        let powerModeTimer;
+
+        let walls = [];
+        let dots = [];
+        let powerPellets = [];
+
+        let player = { x: 0, y: 0, dir: {x:0, y:0}, nextDir: {x:0, y:0}, mouthOpen: 0 };
+        let ghosts = [];
+        const ghostColors = ['#e74c3c', '#3498db', '#e67e22', '#ff9ff3']; 
+
+        class Ghost {
+            constructor(x, y, color, typeIndex) {
+                this.startX = x * TILE_SIZE + TILE_SIZE/2;
+                this.startY = y * TILE_SIZE + TILE_SIZE/2;
+                this.x = this.startX;
+                this.y = this.startY;
+                this.color = color;
+                this.dir = {x: 0, y: 0}; 
+                this.scared = false;
+                this.mode = 'chase'; 
+                this.typeIndex = typeIndex;
+                
+                const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                let validDirs = dirs.filter(d => !isWall(x + d.x, y + d.y));
+                this.dir = validDirs[Math.floor(Math.random() * validDirs.length)] || {x:0, y:0};
+            }
+
+            draw() {
+                let drawColor = this.scared ? '#2980b9' : this.color;
+                if (this.mode === 'dead') drawColor = 'rgba(0,0,0,0)'; 
+
+                ctx.fillStyle = drawColor;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y - 2, TILE_SIZE/2 - 2, Math.PI, 0);
+                ctx.lineTo(this.x + TILE_SIZE/2 - 2, this.y + TILE_SIZE/2 - 2);
+                for(let i=1; i<=3; i++) {
+                   ctx.lineTo(this.x + TILE_SIZE/2 - 2 - (TILE_SIZE/3)*i, (i%2==0 ? this.y + TILE_SIZE/2 - 2 : this.y + TILE_SIZE/2 - 6));
+                }
+                ctx.fill();
+
+                if (this.mode !== 'dead') {
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(this.x - 4, this.y - 6, TILE_SIZE/8, 0, Math.PI * 2);
+                    ctx.arc(this.x + 4, this.y - 6, TILE_SIZE/8, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    let lookX = this.dir.x * 2;
+                    let lookY = this.dir.y * 2;
+                    ctx.arc(this.x - 4 + lookX, this.y - 6 + lookY, TILE_SIZE/16, 0, Math.PI * 2);
+                    ctx.arc(this.x + 4 + lookX, this.y - 6 + lookY, TILE_SIZE/16, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#2c3e50'; // Dark eyes when dead on light bg
+                    ctx.beginPath();
+                    ctx.arc(this.x - 4, this.y - 6, TILE_SIZE/6, 0, Math.PI * 2);
+                    ctx.arc(this.x + 4, this.y - 6, TILE_SIZE/6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('x', this.x-6, this.y-3);
+                    ctx.fillText('x', this.x+2, this.y-3);
+                }
+                
+                if(this.scared && this.mode !== 'dead') {
+                     ctx.strokeStyle = '#ecf0f1';
+                     ctx.lineWidth = 1;
+                     ctx.beginPath();
+                     ctx.moveTo(this.x - 6, this.y + 4);
+                     ctx.lineTo(this.x - 2, this.y + 2);
+                     ctx.lineTo(this.x + 2, this.y + 4);
+                     ctx.lineTo(this.x + 6, this.y + 2);
+                     ctx.stroke();
+                }
+            }
+
+            update() {
+                const moveSpeed = TILE_SIZE / 8;
+
+                if (this.mode === 'dead') {
+                    const dx = this.startX - this.x;
+                    const dy = this.startY - this.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < moveSpeed * 2) {
+                        this.mode = 'chase';
+                        this.scared = false;
+                        this.x = this.startX;
+                        this.y = this.startY;
+                    } else {
+                        const angle = Math.atan2(dy, dx);
+                        this.x += Math.cos(angle) * (moveSpeed * 3);
+                        this.y += Math.sin(angle) * (moveSpeed * 3);
+                    }
+                    return;
+                }
+
+                const centerX = Math.floor(this.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+                const centerY = Math.floor(this.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+                const distToCenter = Math.hypot(this.x - centerX, this.y - centerY);
+
+                if (distToCenter < moveSpeed) {
+                    this.x = centerX;
+                    this.y = centerY;
+                    
+                    const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                    const validMoves = [];
+                    
+                    dirs.forEach(d => {
+                        let col = Math.floor(this.x / TILE_SIZE) + d.x;
+                        let row = Math.floor(this.y / TILE_SIZE) + d.y;
+                        if (!isWall(col, row)) {
+                            if(d.x !== -this.dir.x || d.y !== -this.dir.y) {
+                                validMoves.push(d);
+                            }
+                        }
+                    });
+
+                    let blocked = isWall(Math.floor(this.x / TILE_SIZE) + this.dir.x, Math.floor(this.y / TILE_SIZE) + this.dir.y);
+                    
+                    if (blocked || validMoves.length > 1) {
+                        if (validMoves.length === 0) {
+                            this.dir = {x: -this.dir.x, y: -this.dir.y};
+                        } else {
+                            if (this.scared) {
+                                this.dir = validMoves[Math.floor(Math.random() * validMoves.length)];
+                            } else {
+                                let bestDir = validMoves[0];
+                                let bestDist = 999999;
+                                
+                                let tx = player.x;
+                                let ty = player.y;
+
+                                if (this.typeIndex === 1) { 
+                                    tx += player.dir.x * 4 * TILE_SIZE;
+                                    ty += player.dir.y * 4 * TILE_SIZE;
+                                }
+                                
+                                if (!blocked && Math.random() > 0.7) {
+                                    let keeping = validMoves.find(d => d.x === this.dir.x && d.y === this.dir.y);
+                                    if(keeping) this.dir = keeping;
+                                    else {
+                                         validMoves.forEach(opt => {
+                                            let testX = this.x + opt.x * TILE_SIZE;
+                                            let testY = this.y + opt.y * TILE_SIZE;
+                                            let d = Math.hypot(testX - tx, testY - ty);
+                                            if(d < bestDist) { bestDist = d; bestDir = opt; }
+                                        });
+                                        this.dir = bestDir;
+                                    }
+                                } else {
+                                     validMoves.forEach(opt => {
+                                        let testX = this.x + opt.x * TILE_SIZE;
+                                        let testY = this.y + opt.y * TILE_SIZE;
+                                        let d = Math.hypot(testX - tx, testY - ty);
+                                        if(d < bestDist) { bestDist = d; bestDir = opt; }
+                                    });
+                                    this.dir = bestDir;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let speedMod = this.scared ? 0.6 : 1.0;
+                this.x += this.dir.x * moveSpeed * speedMod;
+                this.y += this.dir.y * moveSpeed * speedMod;
+                
+                if(this.x > canvas.width + TILE_SIZE) this.x = -TILE_SIZE;
+                if(this.x < -TILE_SIZE) this.x = canvas.width + TILE_SIZE;
+            }
+        }
+
+        function initGame() {
+            resizeCanvas(); 
+            walls = [];
+            dots = [];
+            powerPellets = [];
+            ghosts = [];
+            
+            let pelletIndex = 0;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const type = mapLayout[r][c];
+                    if (type === 1) {
+                        walls.push({c, r});
+                    } else if (type === 0 || type === 2) {
+                        dots.push({x: c * TILE_SIZE + TILE_SIZE/2, y: r * TILE_SIZE + TILE_SIZE/2, active: true});
+                        if (type === 2) {
+                            player.x = c * TILE_SIZE + TILE_SIZE/2;
+                            player.y = r * TILE_SIZE + TILE_SIZE/2;
+                        }
+                    } else if (type === 3) {
+                        let label = bonusTypes[pelletIndex % bonusTypes.length];
+                        powerPellets.push({
+                            x: c * TILE_SIZE + TILE_SIZE/2, 
+                            y: r * TILE_SIZE + TILE_SIZE/2, 
+                            active: true,
+                            label: label
+                        });
+                        pelletIndex++;
+                    } else if (type === 4) {
+                        let g = new Ghost(c, r, ghostColors[ghosts.length % ghostColors.length], ghosts.length);
+                        ghosts.push(g);
+                    }
+                }
+            }
+            
+            player.dir = {x:0, y:0};
+            player.nextDir = {x:0, y:0};
+        }
+
+        function isWall(c, r) {
+            if (c < 0 || c >= COLS) return false;
+            return walls.some(w => w.c === c && w.r === r);
+        }
+
+        function updatePlayer() {
+            const moveSpeed = TILE_SIZE / 8; 
+
+            let checkCol = Math.floor(player.x / TILE_SIZE) + player.nextDir.x;
+            let checkRow = Math.floor(player.y / TILE_SIZE) + player.nextDir.y;
+            
+            const centerX = Math.floor(player.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+            const centerY = Math.floor(player.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+            const dist = Math.hypot(player.x - centerX, player.y - centerY);
+
+            if (dist < moveSpeed) {
+                if (!isWall(checkCol, checkRow)) {
+                    player.dir = player.nextDir;
+                    if(player.dir.x !== 0) player.y = centerY;
+                    if(player.dir.y !== 0) player.x = centerX;
+                }
+            }
+
+            let newX = player.x + player.dir.x * moveSpeed;
+            let newY = player.y + player.dir.y * moveSpeed;
+            
+            let offset = TILE_SIZE / 2.5;
+            let frontX = newX + player.dir.x * offset;
+            let frontY = newY + player.dir.y * offset;
+            let gridC = Math.floor(frontX / TILE_SIZE);
+            let gridR = Math.floor(frontY / TILE_SIZE);
+
+            if (!isWall(gridC, gridR)) {
+                player.x = newX;
+                player.y = newY;
+            }
+
+            if(player.x > canvas.width + TILE_SIZE/2) player.x = -TILE_SIZE/2;
+            if(player.x < -TILE_SIZE/2) player.x = canvas.width + TILE_SIZE/2;
+
+            player.mouthOpen = (Math.sin(Date.now() / 80) + 1) * 0.2 + 0.1;
+
+            dots.forEach(d => {
+                if (d.active && Math.hypot(d.x - player.x, d.y - player.y) < TILE_SIZE/2) {
+                    d.active = false;
+                    score += 100; 
+                    scoreEl.innerText = score;
+                    checkWin();
+                }
+            });
+
+            powerPellets.forEach(p => {
+                if (p.active && Math.hypot(p.x - player.x, p.y - player.y) < TILE_SIZE/2) {
+                    p.active = false;
+                    score += 500;
+                    scoreEl.innerText = score;
+                    activatePowerMode();
+                }
+            });
+
+            ghosts.forEach(g => {
+                if (Math.hypot(g.x - player.x, g.y - player.y) < TILE_SIZE * 0.8) {
+                    if (g.mode === 'dead') return;
+
+                    if (powerMode && g.scared) {
+                        g.mode = 'dead';
+                        g.scared = false;
+                        score += 1000;
+                        scoreEl.innerText = score;
+                    } else if (!g.scared) {
+                        handleDeath();
+                    }
+                }
+            });
+        }
+
+        function activatePowerMode() {
+            powerMode = true;
+            ghosts.forEach(g => {
+                if(g.mode !== 'dead') g.scared = true;
+            });
+            clearTimeout(powerModeTimer);
+            powerModeTimer = setTimeout(() => {
+                powerMode = false;
+                ghosts.forEach(g => g.scared = false);
+            }, 5000);
+        }
+
+        function checkWin() {
+            if (dots.every(d => !d.active)) {
+                gameOver(true);
+            }
+        }
+
+        function handleDeath() {
+            lives--;
+            livesEl.innerText = lives;
+            if (lives <= 0) {
+                gameOver(false);
+            } else {
+                player.x = 9 * TILE_SIZE + TILE_SIZE/2; 
+                player.y = 14 * TILE_SIZE + TILE_SIZE/2;
+                player.dir = {x:0, y:0};
+                player.nextDir = {x:0, y:0};
+                
+                ghosts.forEach(g => {
+                    g.x = g.startX;
+                    g.y = g.startY;
+                    g.scared = false;
+                    g.mode = 'chase';
+                    const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                    let validDirs = dirs.filter(d => !isWall(g.startX + d.x*TILE_SIZE, g.startY + d.y*TILE_SIZE));
+                    g.dir = validDirs[Math.floor(Math.random() * validDirs.length)] || {x:0, y:0};
+                });
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#ffffff'; // White canvas bg
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Walls - Navy Blue
+            ctx.fillStyle = '#2c3e50';
+            walls.forEach(w => {
+                ctx.fillRect(w.c * TILE_SIZE, w.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#34495e'; // Lighter border
+                ctx.strokeRect(w.c * TILE_SIZE, w.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            });
+
+            // Dots - Gold
+            dots.forEach(d => {
+                if(d.active) {
+                    ctx.beginPath();
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.arc(d.x, d.y, TILE_SIZE/4, 0, Math.PI*2); 
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#f39c12';
+                    ctx.stroke();
+                    
+                    if (TILE_SIZE > 18) {
+                        ctx.fillStyle = '#fff'; // White text on gold coin
+                        ctx.font = '10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('₪', d.x, d.y + 1);
+                    }
+                }
+            });
+
+            // Power Pellets (Documents) - White/Light Grey with Border
+            powerPellets.forEach(p => {
+                if(p.active) {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    
+                    if (Math.floor(Date.now() / 200) % 2 === 0) { 
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#2980b9'; // Blue border
+                    } else {
+                         ctx.fillStyle = '#ecf0f1';
+                         ctx.strokeStyle = '#34495e'; // Dark border
+                    }
+
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    // Draw document shape
+                    ctx.rect(-TILE_SIZE/3, -TILE_SIZE/2.5, TILE_SIZE/1.5, TILE_SIZE/1.25);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Lines on document
+                    ctx.fillStyle = '#95a5a6';
+                    ctx.fillRect(-TILE_SIZE/5, -TILE_SIZE/5, TILE_SIZE/2.5, 1);
+                    ctx.fillRect(-TILE_SIZE/5, 0, TILE_SIZE/2.5, 1);
+                    ctx.fillRect(-TILE_SIZE/5, TILE_SIZE/5, TILE_SIZE/2.5, 1);
+
+                    if (TILE_SIZE > 15) {
+                        ctx.fillStyle = '#2c3e50';
+                        ctx.font = 'bold 9px Heebo';
+                        ctx.textAlign = 'center';
+                        let shortLabel = p.label.split(' ')[0]; 
+                        // Draw label above
+                        ctx.fillText(shortLabel, 0, -TILE_SIZE/1.5);
+                    }
+                    
+                    ctx.restore();
+                }
+            });
+
+            // Player
+            ctx.fillStyle = '#f1c40f';
+            ctx.strokeStyle = '#d35400';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            let angle = Math.atan2(player.dir.y, player.dir.x);
+            if (player.dir.x === 0 && player.dir.y === 0) angle = 0;
+            
+            ctx.arc(player.x, player.y, TILE_SIZE/2 - 2, angle + player.mouthOpen, angle + 2*Math.PI - player.mouthOpen);
+            ctx.lineTo(player.x, player.y);
+            ctx.fill();
+            ctx.stroke(); // Add stroke to player for visibility
+
+            ghosts.forEach(g => g.draw());
+        }
+
+        function loop() {
+            if (!isGameRunning) return;
+            updatePlayer();
+            ghosts.forEach(g => g.update());
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            scoreEl.innerText = score;
+            livesEl.innerText = lives;
+            initGame();
+            isGameRunning = true;
+            overlay.style.display = 'none';
+            ctaBtn.style.display = 'none'; // Ensure CTA is hidden when game starts
+            loop();
+        }
+
+        function gameOver(win) {
+            isGameRunning = false;
+            overlay.style.display = 'flex';
+            ctaBtn.style.display = 'inline-block'; // Show CTA button
+
+            if (win) {
+                document.querySelector('#overlay h2').innerText = "החזר מלא!";
+                messageEl.innerText = "כל הכבוד! ניצחת את השיטה ואספת את כל השקלים. השגת: ₪" + score;
+                startBtn.innerText = "שחק שוב";
+            } else {
+                document.querySelector('#overlay h2').innerText = "נפסלת!";
+                messageEl.innerText = "פעם הבאה במקום להתרוצץ לחינם, דברו איתנו להחזר מס דיגיטלי, קל ומהיר!";
+                startBtn.innerText = "נסה שוב";
+            }
+        }
+
+        window.addEventListener('keydown', e => {
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+            switch(e.key) {
+                case 'ArrowUp': player.nextDir = {x:0, y:-1}; break;
+                case 'ArrowDown': player.nextDir = {x:0, y:1}; break;
+                case 'ArrowLeft': player.nextDir = {x:-1, y:0}; break;
+                case 'ArrowRight': player.nextDir = {x:1, y:0}; break;
+            }
+        });
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault(); 
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', e => {
+             e.preventDefault(); 
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', e => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (Math.abs(dx) > 10) { 
+                    player.nextDir = dx > 0 ? {x:1, y:0} : {x:-1, y:0};
+                }
+            } else {
+                if (Math.abs(dy) > 10) {
+                    player.nextDir = dy > 0 ? {x:0, y:1} : {x:0, y:-1};
+                }
+            }
+        });
+
+        initGame();
+        draw();
+
+    </script>
+</body>
+</html>
